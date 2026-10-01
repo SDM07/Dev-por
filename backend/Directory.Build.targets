@@ -1,0 +1,8 @@
+<Project>
+  <!-- El source generator de Tomlyn (dependencia de Snowflake.Data) requiere Roslyn 4.9+ y no lo usamos. -->
+  <Target Name="RemoveTomlynSourceGenerator" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Filename)' == 'Tomlyn.SourceGeneration'" />
+    </ItemGroup>
+  </Target>
+</Project>

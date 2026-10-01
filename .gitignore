@@ -1,0 +1,27 @@
+# Node
+node_modules/
+frontend/dist/
+frontend/.env.local
+
+# .NET
+bin/
+obj/
+backend/artifacts/
+*.user
+TestResults/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+# El lock se genera en el pipeline (multi-plataforma con `terraform providers lock`).
+.terraform.lock.hcl
+
+# Secretos
+*.p8
+*.pem
+.env
+
+.DS_Store

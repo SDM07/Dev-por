@@ -1,0 +1,9 @@
+{
+  "configuration": "Release",
+  "framework": "net8.0",
+  "function-runtime": "dotnet8",
+  "function-architecture": "arm64",
+  "function-handler": "DeveloperPortal.Api",
+  "function-memory-size": 1024,
+  "function-timeout": 30
+}

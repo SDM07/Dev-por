@@ -1,0 +1,11 @@
+environment        = "prd"
+aws_region         = "us-east-1"
+domain_name        = "developers.empresa.com"
+hosted_zone_name   = "empresa.com"
+azure_tenant_id    = "00000000-0000-0000-0000-000000000000"
+azure_client_id    = "00000000-0000-0000-0000-000000000000"
+azure_admin_role   = "Portal.Admin"
+alarm_emails       = ["equipo-plataforma@empresa.com"]
+log_retention_days = 365
+waf_rate_limit     = 2000
+# waf_allowed_country_codes = ["CO"]

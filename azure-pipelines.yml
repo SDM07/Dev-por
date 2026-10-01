@@ -1,0 +1,86 @@
+# Developer Portal - CI/CD
+# Build y pruebas (frontend React + backend .NET 8) -> despliegue DEV -> despliegue PRD (con aprobación).
+#
+# Requisitos en Azure DevOps (ver README):
+#   - Extensión "AWS Toolkit for Azure DevOps" y service connections de AWS: aws-devportal-dev / aws-devportal-prd
+#   - Variable groups: devportal-dev / devportal-prd
+#   - Environments: devportal-dev / devportal-prd (agrega aprobadores al de PRD)
+
+trigger:
+  branches:
+    include: [main]
+pr:
+  branches:
+    include: [main]
+
+variables:
+  NODE_VERSION: '20.x'
+  DOTNET_VERSION: '8.0.x'
+  TERRAFORM_VERSION: '1.9.8'
+
+stages:
+  - stage: Build
+    displayName: Build y pruebas
+    jobs:
+      - job: Frontend
+        pool: { vmImage: ubuntu-latest }
+        steps:
+          - task: NodeTool@0
+            inputs: { versionSpec: $(NODE_VERSION) }
+          - script: npm ci
+            workingDirectory: frontend
+            displayName: npm ci
+          - script: npm run lint && npm test
+            workingDirectory: frontend
+            displayName: Typecheck y pruebas
+          - publish: frontend
+            artifact: frontend-src
+            displayName: Publicar fuentes del frontend
+            # El build final se hace por ambiente (las variables VITE_* cambian).
+
+      - job: Backend
+        pool: { vmImage: ubuntu-latest }
+        steps:
+          - task: UseDotNet@2
+            inputs: { version: $(DOTNET_VERSION) }
+          - script: dotnet test backend/DeveloperPortal.sln -c Release --logger trx --results-directory $(Agent.TempDirectory)/tests
+            displayName: Pruebas .NET
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: VSTest
+              testResultsFiles: '$(Agent.TempDirectory)/tests/*.trx'
+          - script: |
+              set -e
+              dotnet publish backend/src/DeveloperPortal.Api -c Release -r linux-arm64 --self-contained false -o $(Build.ArtifactStagingDirectory)/publish
+              cd $(Build.ArtifactStagingDirectory)/publish && zip -qr $(Build.ArtifactStagingDirectory)/lambda.zip .
+            displayName: Empaquetar Lambda (linux-arm64)
+          - publish: $(Build.ArtifactStagingDirectory)/lambda.zip
+            artifact: lambda
+
+      - job: Terraform
+        pool: { vmImage: ubuntu-latest }
+        steps:
+          - script: |
+              set -e
+              curl -sSLo tf.zip https://releases.hashicorp.com/terraform/$(TERRAFORM_VERSION)/terraform_$(TERRAFORM_VERSION)_linux_amd64.zip
+              sudo unzip -oq tf.zip -d /usr/local/bin
+              cd infra/terraform
+              terraform fmt -check -recursive
+              terraform init -backend=false
+              terraform validate
+            displayName: terraform fmt / validate
+          - publish: infra
+            artifact: infra
+
+  - template: pipelines/templates/deploy.yml
+    parameters:
+      environment: dev
+      dependsOn: Build
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+
+  - template: pipelines/templates/deploy.yml
+    parameters:
+      environment: prd
+      dependsOn: Deploy_dev
+      condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
